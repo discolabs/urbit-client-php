@@ -1,0 +1,32 @@
+{
+  "name": "urbit/client",
+  "description": "PHP library for urb-it integration",
+  "keywords": ["urbit", "urb-it", "php", "client"],
+  "license": "MIT",
+  "homepage": "http://github.com/urbitassociates/urbit-client-php",
+  "support": {
+    "issues": "http://github.com/urbitassociates/urbit-client-php/issues",
+    "source": "http://github.com/urbitassociates/urbit-client-php"
+  },
+  "authors": [
+    {
+      "name": "Sebastian Mandrean",
+      "email": "sebastian@urb-it.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.5.9",
+    "guzzlehttp/guzzle": "~6.0",
+    "ramsey/uuid": "^3.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "~5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Urbit\\": "src/"
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
