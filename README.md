@@ -21,7 +21,7 @@ php composer.phar require urbit/client:dev-master
 
 After installing, you need to require Composer's auto-loader:
 ```php
-require 'vendor/autoload.php';
+require __DIR__ . '/vendor/autoload.php';
 ```
 
 You can later update the PHP client using composer:
@@ -36,7 +36,9 @@ For the legacy version of the PHP client, please see the [legacy branch](https:/
 ## Usage
 
 ```php
-$client = new Urbit\Client('<store_key>', '<shared_secret>');
+$storeKey = '<store key>';
+$sharedSecret = '<shared secret>';
+$client = new Urbit\Client($storeKey, $sharedSecret);
 
 $openingHours = $client->getOpeningHours('2016-05-21', '2016-05-28');
 
@@ -47,10 +49,15 @@ $createOrderResponse = $client->createOrder($order);
 $validateDeliveryResponse = $client->validateDelivery($order);
 ```
 
-Only UWA:
+Or if you only need UWA and not the full client:
 
 ```php
-$uwa = new Urbit\UWA();
+$storeKey = '<store key>';          // Store key
+$sharedSecret = '<shared secret>';  // Shared secret
+$method = 'GET';                    // HTTP method, like GET, POST, PUT, DELETE
+$url = '';                          // Full HTTP request URL
+$json = '';                         // JSON body, if any
+$uwa = new Urbit\Auth\UWA($storeKey, $sharedSecret, $method, $url, $json);
 ```
 
 ## Documentation
