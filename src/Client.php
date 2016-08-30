@@ -104,7 +104,7 @@ class Client
 
         $response = $this->request(
             'GET',
-            'openinghours',
+            'urbninghours',
             ['query' => ['from' => $from, 'to' => $to, 'pickup_location_id' => $pickupLocationId]]
         );
 
