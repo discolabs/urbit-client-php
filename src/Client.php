@@ -2,7 +2,6 @@
 namespace Urbit;
 
 use GuzzleHttp\Psr7;
-use GuzzleHttp\Exception\ClientException;
 use Urbit\Auth\UWA;
 
 class Client
@@ -19,7 +18,7 @@ class Client
      * @param string $sharedSecret
      * @param bool   $stage
      *
-     * @throws \Exception
+     * @throws \RuntimeException
      */
     public function __construct(
         $storeKey = '',
@@ -32,11 +31,11 @@ class Client
         $this->baseUri = $this->stage ? Constants::STAGE_BASE_URL : Constants::PROD_BASE_URL;
 
         if (!$this->storeKey) {
-            throw new \Exception('Store key is missing.');
+            throw new \RuntimeException('Store key is missing.');
         }
 
         if (!$this->sharedSecret) {
-            throw new \Exception('Shared secret is missing.');
+            throw new \RuntimeException('Shared secret is missing.');
         }
     }
 
@@ -85,6 +84,31 @@ class Client
         }
 
         return $response;
+    }
+
+    public function getUrbningHours($from = '', $to = '', $pickupLocationId = null)
+    {
+        self::validateInput(
+            '/^[\d]{4}-[\d]{2}-[\d]{2}$/',
+            [$from, $to],
+            'From and To parameters must be in YYYY-MM-DD format.'
+        );
+
+        if ($from > $to) {
+            throw new \Exception('From cannot be greater than To.');
+        }
+
+        if (!isset($pickupLocationId)) {
+            throw new \Exception('A pickup location ID must be provided.');
+        }
+
+        $response = $this->request(
+            'GET',
+            'openinghours',
+            ['query' => ['from' => $from, 'to' => $to, 'pickup_location_id' => $pickupLocationId]]
+        );
+
+        return $response->getBody();
     }
 
     /**
