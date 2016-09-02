@@ -9,7 +9,8 @@ class Client
     private $storeKey;
     private $sharedSecret;
     private $stage;
-    private $baseUri;
+
+    public $baseUrl;
 
     /**
      * Urbit constructor.
@@ -28,7 +29,7 @@ class Client
         $this->storeKey = (string) $storeKey;
         $this->sharedSecret = (string) $sharedSecret;
         $this->stage = (bool) $stage;
-        $this->baseUri = $this->stage ? Constants::STAGE_BASE_URL : Constants::PROD_BASE_URL;
+        $this->baseUrl = $this->stage ? Constants::STAGE_BASE_URL : Constants::PROD_BASE_URL;
 
         if (!$this->storeKey) {
             throw new \RuntimeException('Store key is missing.');
@@ -52,7 +53,7 @@ class Client
     public function request($method = 'GET', $uri = null, $options = [])
     {
         $client = new \GuzzleHttp\Client([
-            'base_uri' => $this->baseUri,
+            'base_uri' => $this->baseUrl,
             'timeout'  => 15.0,
             'connect_timeout' => 15.0
         ]);
@@ -61,7 +62,7 @@ class Client
             $this->storeKey,
             $this->sharedSecret,
             $method,
-            $this->baseUri . $uri,
+            $this->baseUrl . $uri,
             isset($options->json) ? $options->json : ''
         );
 

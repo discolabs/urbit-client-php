@@ -60,6 +60,15 @@ $json = '';                         // JSON body, if any
 $uwa = new Urbit\Auth\UWA($storeKey, $sharedSecret, $method, $url, $json);
 ```
 
+One can also override the base URL:
+
+```php
+$client = new Urbit\Client('<store key>', '<shared secret>');
+$client->baseUrl = 'https://another-api.com/v1/';
+
+$client->request('GET', 'orders'); // Sends a GET request to https://another-api.com/v1//orders
+```
+
 ## Documentation
 
 * General API documentation: http://developer.urb-it.com
@@ -68,4 +77,5 @@ $uwa = new Urbit\Auth\UWA($storeKey, $sharedSecret, $method, $url, $json);
 ## Maintainers & Contributors
 
 * Sebastian Mandrean <sebastian@urb-it.com> (Maintainer)
+* Caio Mathielo <caio@urb-it.com> (Contributor)
 * Ivar Johansson <ivar@urb-it.com> (Contributor)
