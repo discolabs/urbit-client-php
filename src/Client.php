@@ -6,10 +6,14 @@ use Urbit\Auth\UWA;
 
 class Client
 {
+    /** @var string */
     private $storeKey;
+    /** @var string */
     private $sharedSecret;
+    /** @var bool */
     private $stage;
 
+    /** @var string */
     public $baseUrl;
 
     /**
@@ -87,27 +91,46 @@ class Client
         return $response;
     }
 
-    public function getUrbningHours($from = '', $to = '', $pickupLocationId = null)
+    /**
+     * @param string $pickupLocationId location UUID string
+     * @param string|\DateTime $from
+     * @param string|\DateTime $to
+     * @return \Psr\Http\Message\StreamInterface
+     */
+    public function getUrbningHours($pickupLocationId = null, $from = null, $to = null)
     {
-        self::validateInput(
-            '/^[\d]{4}-[\d]{2}-[\d]{2}$/',
-            [$from, $to],
-            'From and To parameters must be in YYYY-MM-DD format.'
-        );
+        // Process the From / To inputs
+        if (null === $from) {
+            $from = date('Y-m-d');
+        } else if ($from instanceof \DateTime) {
+            $from = $from->format('Y-m-d');
+        } else {
+            self::validateInput('/^\d{4}-\d{2}-\d{2}$/', $from, 'To parameter must be in YYYY-MM-DD format.');
+        }
+
+        if (null === $to) {
+            $to = date('Y-m-d');
+        } else if ($to instanceof \DateTime) {
+            $to = $to->format('Y-m-d');
+        } else {
+            self::validateInput('/^\d{4}-\d{2}-\d{2}$/', $to, 'To parameter must be in YYYY-MM-DD format.');
+        }
 
         if ($from > $to) {
-            throw new \Exception('From cannot be greater than To.');
+            throw new InvalidInputException('From cannot be greater than To.');
         }
 
-        if (!isset($pickupLocationId)) {
-            throw new \Exception('A pickup location ID must be provided.');
+        if (!$pickupLocationId) {
+            throw new InvalidInputException('A pickup location ID must be provided.');
         }
 
-        $response = $this->request(
-            'GET',
-            'urbninghours',
-            ['query' => ['from' => $from, 'to' => $to, 'pickup_location_id' => $pickupLocationId]]
-        );
+        $response = $this->request('GET', 'stores/me/pickup-locations/urbning-hours', [
+            'query' => [
+                'from' => $from,
+                'to' => $to,
+                'pickup_location_id' => $pickupLocationId,
+            ],
+        ]);
 
         return $response->getBody();
     }
@@ -143,20 +166,34 @@ class Client
      *
      * @param string $postalCode
      *
-     * @return bool
-     * @throws \Exception
+     * @return bool         True if the postcode is valid, false if an invalid postalcode (e.g. "asdf") or
+     *                      if the supplied postal code is not included in the urb-it area
+     * @throws \Exception   An exception is thrown if there was a problem communicating with the API
      */
-    public function validatePostalCode($postalCode = '')
+    public function validatePostalCode($postalCode)
     {
-        self::validateInput('/^[\d]{3}\s?[\d]{2}$/', $postalCode, 'Invalid postal code.');
+        try {
+            // validate the given postalcode
+            self::validateInput('/^[\d]{3}\s?[\d]{2}$/', $postalCode, 'Invalid postal code.');
 
-        $response = $this->request(
-            'POST',
-            'postalcode/validate',
-            ['json' => ['postal_code' => str_replace(' ', '', $postalCode)]]
-        );
+            // Check the postalcode with the api
+            $response = $this->request('POST', 'postalcode/validate', [
+                'json' => [
+                    'postal_code' => str_replace(' ', '', $postalCode),
+                ],
+            ]);
 
-        return $response->getStatusCode() === 200;
+            return $response->getStatusCode() === 200;
+        } catch (InvalidInputException $exception) {
+            return false;
+        } catch (ClientException $exception) {
+            // The client returns a 404 for an invalid postalcode
+            if (404 === $exception->getResponse()->getStatusCode()) {
+                return false;
+            }
+
+            throw $exception;
+        }
     }
 
     /**
@@ -206,7 +243,7 @@ class Client
 
         foreach ($inputs as $input) {
             if (!preg_match($regex, $input)) {
-                throw new \Exception($errorMessage);
+                throw new InvalidInputException($errorMessage);
             }
         }
     }
