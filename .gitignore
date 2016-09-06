@@ -52,3 +52,6 @@ composer.phar
 # Misc
 .ash_history
 .bash_history
+
+# API test credentials
+credentials.local.ini
