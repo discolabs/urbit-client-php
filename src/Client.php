@@ -1,15 +1,23 @@
 <?php
+
 namespace Urbit;
 
-use GuzzleHttp\Psr7;
 use Urbit\Auth\UWA;
+use GuzzleHttp\HandlerStack;
+use Urbit\Request\Middleware;
 
 class Client
 {
+    /** @var \GuzzleHttp\Client */
+    private $client;
+    /** @var string */
     private $storeKey;
+    /** @var string */
     private $sharedSecret;
+    /** @var bool */
     private $stage;
 
+    /** @var string */
     public $baseUrl;
 
     /**
@@ -21,11 +29,8 @@ class Client
      *
      * @throws \RuntimeException
      */
-    public function __construct(
-        $storeKey = '',
-        $sharedSecret = '',
-        $stage = false
-    ) {
+    public function __construct($storeKey = '', $sharedSecret = '', $stage = false)
+    {
         $this->storeKey = (string) $storeKey;
         $this->sharedSecret = (string) $sharedSecret;
         $this->stage = (bool) $stage;
@@ -38,6 +43,8 @@ class Client
         if (!$this->sharedSecret) {
             throw new \RuntimeException('Shared secret is missing.');
         }
+
+        $this->client = $this->createClient();
     }
 
     /**
@@ -52,27 +59,7 @@ class Client
      */
     public function request($method = 'GET', $uri = null, $options = [])
     {
-        $client = new \GuzzleHttp\Client([
-            'base_uri' => $this->baseUrl,
-            'timeout'  => 15.0,
-            'connect_timeout' => 15.0
-        ]);
-
-        $uwa = new UWA(
-            $this->storeKey,
-            $this->sharedSecret,
-            $method,
-            $this->baseUrl . $uri,
-            isset($options->json) ? $options->json : ''
-        );
-
-        $options = [
-            'headers' => [
-                'Authorization' => $uwa->getAuthorizationHeader()
-            ]
-        ];
-
-        $response = $client->request($method, $uri, $options);
+        $response = $this->client->request($method, $uri, $options);
 
         if ($response->getStatusCode() !== 200) {
             $body = $response->getBody();
@@ -210,4 +197,33 @@ class Client
             }
         }
     }
+
+    /**
+     * @return \GuzzleHttp\Client
+     */
+    private function createClient()
+    {
+        return new \GuzzleHttp\Client([
+            'base_uri' => $this->baseUrl,
+            'timeout'  => 15.0,
+            'connect_timeout' => 15.0,
+            'handler' => $this->createHandlerStack(),
+        ]);
+    }
+
+    /**
+     * @return HandlerStack
+     */
+    private function createHandlerStack()
+    {
+        $stack = HandlerStack::create();
+
+        if ($this->storeKey && $this->sharedSecret) {
+            $UWAProvider = new UWA($this->storeKey, $this->sharedSecret);
+            $stack->push(Middleware::uwaAuth($UWAProvider), 'uwa_header');
+        }
+
+        return $stack;
+    }
+
 }
