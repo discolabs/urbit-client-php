@@ -2,38 +2,43 @@
 
 namespace Urbit\Auth;
 
+use Psr\Http\Message\RequestInterface;
 use Ramsey\Uuid\Uuid;
 
-class UWA
+class UWA implements UWAProviderInterface
 {
-    private $header;
+    /** @var string */
+    private $storeKey;
+    /** @var string */
+    private $sharedSecret;
 
     /**
      * UWA constructor
      *
      * @param string $storeKey
      * @param string $sharedSecret
-     * @param string $method
-     * @param string $url
-     * @param string $json
-     * @param int    $timestamp
      */
-    public function __construct(
-        $storeKey = '',
-        $sharedSecret = '',
-        $method = '',
-        $url = '',
-        $json = '',
-        $timestamp = null
-    ) {
-        $this->setAuthorizationHeader(
-            (string) $storeKey,
-            (string) $sharedSecret,
-            (string) $method,
-            (string) $url,
-            (string) $json,
-            (int) $timestamp
-        );
+    public function __construct($storeKey = '', $sharedSecret = '') {
+        $this->storeKey = $storeKey;
+        $this->sharedSecret = $sharedSecret;
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @param string $nonce
+     * @param int $timestamp
+     * @return string
+     */
+    public function getRequestAuthorizationHeader(RequestInterface $request, $nonce = null, $timestamp = null) {
+        $timestamp = $timestamp ?: time(); // Get current Unix timestamp
+        $nonce = $nonce ?: Uuid::uuid4(); // Generate RFC4122 v4 compliant UUID
+
+        $secretKey = $this->getSecretKey();
+        $messageToSign = $this->getMessageToSign($request, $nonce, $timestamp);
+        $signature = $this->getSignature($secretKey, $messageToSign);
+
+        // Return header
+        return 'UWA ' . implode(':', [$this->storeKey, $signature, $nonce, $timestamp]);
     }
 
     /**
@@ -52,25 +57,24 @@ class UWA
     /**
      * Return the message to sign
      *
-     * @param $storeKey
-     * @param $method
-     * @param $url
-     * @param $timestamp
-     * @param $nonce
-     * @param $digest
+     * @param RequestInterface $request
+     * @param string $nonce
+     * @param int $timestamp
      *
      * @return mixed
      */
-    private function getMessageToSign($storeKey, $method, $url, $timestamp, $nonce, $digest)
+    private function getMessageToSign(RequestInterface $request, $nonce, $timestamp)
     {
-        return implode('', array(
-            $storeKey,
-            strtoupper($method),
-            strtolower($url),
+        $digest = $this->getDigest($request->getBody()->getContents());
+
+        return implode('', [
+            $this->storeKey,
+            strtoupper($request->getMethod()),
+            strtolower($request->getUri()),
             $timestamp,
             $nonce,
-            $digest
-        ));
+            $digest,
+        ]);
     }
 
     /**
@@ -78,63 +82,21 @@ class UWA
      *
      * @param string $json
      *
-     * @return mixed
+     * @return string
      */
     private function getDigest($json = '')
     {
-        return $json && strlen($json) > 0 ? base64_encode(md5($json, true)) : '';
+        return $json && strlen($json) > 0 ? base64_encode(md5(utf8_encode($json), true)) : '';
     }
 
     /**
      * Return the secret key
      *
-     * @param $sharedSecret
-     *
-     * @return mixed
-     */
-    private function getSecretKey($sharedSecret)
-    {
-        return base64_decode($sharedSecret);
-    }
-
-    /**
-     * Set the UWA header
-     *
-     * @param string $storeKey
-     * @param string $sharedSecret
-     * @param string $method
-     * @param string $url
-     * @param string $json
-     * @param int    $timestamp
-     */
-    private function setAuthorizationHeader(
-        $storeKey = '',
-        $sharedSecret = '',
-        $method = '',
-        $url = '',
-        $json = '',
-        $timestamp = null
-    ) {
-        $timestamp = $timestamp ?: time(); // Get current Unix timestamp
-        $nonce = Uuid::uuid4(); // Generate RFC4122 v4 compliant UUID
-        $json = utf8_encode($json); // Ensure JSON content is encoded a UTF-8
-
-        $secretKey = $this->getSecretKey($sharedSecret);
-        $digest = $this->getDigest($json);
-        $messageToSign = $this->getMessageToSign($storeKey, $method, $url, $timestamp, $nonce, $digest);
-        $signature = $this->getSignature($secretKey, $messageToSign);
-
-        // Return header
-        $this->header = 'UWA ' . implode(':', array($storeKey, $signature, $nonce, $timestamp));
-    }
-
-    /**
-     * Return the UWA header
-     *
      * @return string
      */
-    public function getAuthorizationHeader()
+    private function getSecretKey()
     {
-        return $this->header;
+        return base64_decode($this->sharedSecret);
     }
+
 }
